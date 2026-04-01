@@ -29,6 +29,7 @@ Build a small course-management website that:
 - `.github/pull_request_template.md`: PR checklist/template
 
 ## Quick Start (Ubuntu/WSL Preferred)
+# Database needs to be initialized first #
 
 1. Create local env file:
    - `cp .env.example .env`
@@ -69,6 +70,7 @@ Before starting any work:
 6. Work from the assigned Jira issue
 
 Every PR should update documentation as needed:
+- AI will do most of this :) 
 - `docs/DEV_LOG.md`
 - `docs/TEAM_HANDOFF.md`
 - `docs/ARCHITECTURE_DECISIONS.md` (if a decision changes)
