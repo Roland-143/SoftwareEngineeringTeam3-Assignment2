@@ -33,11 +33,12 @@ backend/
 
 ## API endpoints
 
-| Method | Path                    | Description                                       |
-| ------ | ----------------------- | ------------------------------------------------- |
-| GET    | `/health`               | Returns `{"status":"ok","service":"backend"}`      |
-| GET    | `/api/students`         | All students sorted by `studentId` ASC             |
-| GET    | `/api/students/average` | Average course score: `{"averageScore": 85.45}`    |
+| Method | Path                    | Description                                               |
+| ------ | ----------------------- | --------------------------------------------------------- |
+| GET    | `/health`               | Returns `{"status":"ok","service":"backend"}`              |
+| GET    | `/api/students`         | All students sorted by `studentId` ASC                    |
+| POST   | `/api/students`         | Create a new student record                               |
+| GET    | `/api/students/average` | Average course score and student count                    |
 
 ### `GET /api/students` response shape
 
@@ -52,6 +53,53 @@ backend/
   }
 ]
 ```
+
+Empty table returns `[]`.
+
+### `POST /api/students` request body
+
+```json
+{
+  "studentId": 1,
+  "firstName": "Alex",
+  "middleName": null,
+  "lastName": "Carter",
+  "score": 86.5
+}
+```
+
+Field rules:
+- `studentId` – integer, 1–20, required
+- `firstName` / `lastName` – non-empty string, letters/spaces/hyphens/apostrophes, max 50 chars, required
+- `middleName` – same format, optional (`null` or omitted)
+- `score` – number, 0–100 inclusive, required
+
+**201 Created** (success):
+```json
+{
+  "studentId": 1,
+  "firstName": "Alex",
+  "middleName": null,
+  "lastName": "Carter",
+  "score": 86.5
+}
+```
+
+**400 Bad Request** (validation failure):
+```json
+{
+  "error": "Validation failed.",
+  "details": ["studentId must be between 1 and 20.", "score is required."]
+}
+```
+
+### `GET /api/students/average` response shape
+
+```json
+{ "averageScore": 85.45, "count": 20 }
+```
+
+When the table is empty: `{ "averageScore": null, "count": 0 }`.
 
 ## Environment variables
 
@@ -77,4 +125,22 @@ make down        # stop everything
 curl http://localhost:5000/health
 curl http://localhost:5000/api/students
 curl http://localhost:5000/api/students/average
+
+# Submit a student record
+curl -X POST http://localhost:5000/api/students \
+  -H "Content-Type: application/json" \
+  -d '{"studentId":1,"firstName":"Alex","middleName":null,"lastName":"Carter","score":86.5}'
 ```
+
+## Testing checklist (Docker)
+
+1. `make up` – confirm both `db` and `backend` containers start without error
+2. `curl http://localhost:5000/health` – expect `{"status":"ok","service":"backend"}`
+3. `curl http://localhost:5000/api/students` – expect a JSON array, sorted by `studentId` ASC
+4. `curl http://localhost:5000/api/students/average` – expect `{"averageScore": <float|null>, "count": <int>}`
+5. POST a valid student (see command above) – expect **201** with the inserted record
+6. POST with a missing `firstName` – expect **400** with `"details"` listing the error
+7. POST with `studentId: 99` – expect **400** `studentId must be between 1 and 20`
+8. POST with `score: 150` – expect **400** `score must be between 0 and 100`
+9. POST with non-JSON body – expect **400** `Request body must be JSON`
+10. `make reset-db && make up` – confirm seed data loads and GET /api/students returns 20 rows
