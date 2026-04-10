@@ -12,6 +12,7 @@ def fetch_all_students_sorted():
         studentId, firstName, middleName, lastName, score
     """
     conn = get_connection()
+    cursor = None
     try:
         cursor = conn.cursor(dictionary=True)
         cursor.execute(
@@ -20,6 +21,8 @@ def fetch_all_students_sorted():
         )
         rows = cursor.fetchall()
     finally:
+        if cursor is not None:
+            cursor.close()
         conn.close()
 
     return [
@@ -37,11 +40,14 @@ def fetch_all_students_sorted():
 def compute_average_score():
     """Return the average course_score across all students."""
     conn = get_connection()
+    cursor = None
     try:
         cursor = conn.cursor(dictionary=True)
         cursor.execute("SELECT AVG(course_score) AS avg_score FROM students")
         result = cursor.fetchone()
     finally:
+        if cursor is not None:
+            cursor.close()
         conn.close()
 
     avg = result["avg_score"]
