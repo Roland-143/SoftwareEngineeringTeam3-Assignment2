@@ -31,6 +31,16 @@ Use this file to record project-level technical decisions and assumptions.
 
 - ---
 
+- Date: 2026-04-10
+- Jira: Backend initial setup
+- Team: Backend
+- Decision: Backend stack is Python 3.12 / Flask 3.1 with mysql-connector-python, flask-cors, and python-dotenv. Backend service is no longer a scaffold placeholder and starts by default with Docker Compose.
+- Reason: Flask is lightweight, well-documented, and easy for team members and instructors to understand. mysql-connector-python is the official Oracle-maintained MySQL driver, avoiding C-library compilation issues in Docker. flask-cors enables frontend integration across different ports. python-dotenv loads environment variables for local development.
+- Alternatives considered: FastAPI (more complex async patterns not needed for this scope), Django (too heavyweight for a simple API), Express/Node.js (team chose Python).
+- Impact on other teams: Frontend should call `GET /api/students` (port 5000) for sorted student records and `GET /api/students/average` for average score. CORS is enabled. Field names are camelCase: studentId, firstName, middleName, lastName, score.
+
+- ---
+
 - Date: 2026-04-06
 - Jira: Frontend initial planning
 - Team: Frontend
