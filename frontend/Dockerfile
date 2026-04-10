@@ -1,8 +1,13 @@
-# Stack-neutral placeholder Dockerfile for the frontend team.
-# Replace this file after the team selects a frontend language/framework.
+FROM node:20-alpine
 
-FROM alpine:3.20
+WORKDIR /app
 
-WORKDIR /workspace
+COPY package*.json ./
 
-CMD ["sh", "-c", "echo 'Frontend placeholder image built. Replace frontend/Dockerfile with the team-selected stack.' && sleep infinity"]
+RUN npm install
+
+COPY . .
+
+EXPOSE 5173
+
+CMD ["npm", "run", "dev", "--", "--host"]
