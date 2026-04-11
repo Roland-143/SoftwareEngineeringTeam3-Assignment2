@@ -23,6 +23,7 @@ services:
       start_period: 20s
 
   backend:
+    profiles: ["scaffold"]
     build:
       context: ./backend
       dockerfile: Dockerfile
@@ -30,16 +31,17 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    ports:
-      - "${BACKEND_PORT:-5000}:5000"
+    working_dir: /workspace
     environment:
       APP_ENV: ${APP_ENV:-development}
-      PORT: "5000"
       DB_HOST: db
       DB_PORT: "3306"
       DB_NAME: ${APP_DB_NAME:-course_management}
       DB_USER: ${APP_DB_USER:-studentapp}
       DB_PASSWORD: ${APP_DB_PASSWORD:?Set APP_DB_PASSWORD in .env}
+    volumes:
+      - ./backend:/workspace
+    command: sh -c "echo 'Backend skeleton container is running. Replace backend/Dockerfile and add your backend project files when stack is selected.' && sleep infinity"
 
   frontend:
     profiles: ["scaffold"]
@@ -52,7 +54,7 @@ services:
         condition: service_started
     working_dir: /workspace
     environment:
-      API_BASE_URL: ${API_BASE_URL:-http://localhost:5000}
+      API_BASE_URL: ${API_BASE_URL:-http://localhost:3001}
     volumes:
       - ./frontend:/workspace
     command: sh -c "echo 'Frontend skeleton container is running. Replace frontend/Dockerfile and add your frontend project files when stack is selected.' && sleep infinity"
