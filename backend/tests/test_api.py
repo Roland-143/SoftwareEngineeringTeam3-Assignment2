@@ -10,6 +10,7 @@ from app import create_app  # noqa: E402
 from app.services.student_service import (  # noqa: E402
     CourseNotFoundError,
     DuplicateEnrollmentError,
+    EnrollmentNotFoundError,
     StudentNotFoundError,
 )
 
@@ -452,6 +453,38 @@ class ApiTestCase(unittest.TestCase):
             "/api/students/1/enrollments",
             json={"courseId": 2, "score": 91.0},
         )
+
+        self.assertEqual(response.status_code, 500)
+        self.assertEqual(response.get_json(), {"error": "An internal error occurred"})
+
+    @patch("app.controllers.student_controller.delete_enrollment")
+    def test_delete_student_enrollment_returns_200(self, mock_delete_enrollment):
+        response = self.client.delete("/api/students/1/enrollments/2")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get_json(), {"message": "Enrollment deleted."})
+        mock_delete_enrollment.assert_called_once_with(1, 2)
+
+    @patch("app.controllers.student_controller.delete_enrollment")
+    def test_delete_student_enrollment_missing_record_returns_404(
+        self, mock_delete_enrollment
+    ):
+        mock_delete_enrollment.side_effect = EnrollmentNotFoundError(
+            "Enrollment does not exist."
+        )
+
+        response = self.client.delete("/api/students/1/enrollments/2")
+
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.get_json(), {"error": "Enrollment does not exist."})
+
+    @patch("app.controllers.student_controller.delete_enrollment")
+    def test_delete_student_enrollment_unexpected_failure_returns_500(
+        self, mock_delete_enrollment
+    ):
+        mock_delete_enrollment.side_effect = RuntimeError("unexpected failure")
+
+        response = self.client.delete("/api/students/1/enrollments/2")
 
         self.assertEqual(response.status_code, 500)
         self.assertEqual(response.get_json(), {"error": "An internal error occurred"})
