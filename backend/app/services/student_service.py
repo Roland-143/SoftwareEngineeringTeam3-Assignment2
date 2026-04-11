@@ -21,6 +21,10 @@ class DuplicateEnrollmentError(Exception):
     """Raised when a student is already enrolled in the target course."""
 
 
+class EnrollmentNotFoundError(Exception):
+    """Raised when a requested enrollment record does not exist."""
+
+
 def _get_course_record(cursor, course_id):
     cursor.execute(
         "SELECT course_id, course_name FROM Courses WHERE course_id = %s",
@@ -234,3 +238,48 @@ def create_enrollment(student_id, cleaned):
         conn.close()
 
     return _build_enrollment_record(student_row, course_row, cleaned["score"])
+
+
+def delete_enrollment(student_id, course_id):
+    """Delete one enrollment record.
+
+    If the student has no remaining enrollments after deletion, their Students row
+    is also removed to avoid orphaned records that never appear in list queries.
+    """
+    conn = get_connection()
+    cursor = None
+    try:
+        cursor = conn.cursor(dictionary=True)
+        cursor.execute(
+            "SELECT 1 FROM Enrollments WHERE student_id = %s AND course_id = %s",
+            (student_id, course_id),
+        )
+        if cursor.fetchone() is None:
+            raise EnrollmentNotFoundError("Enrollment does not exist.")
+
+        cursor.execute(
+            "DELETE FROM Enrollments WHERE student_id = %s AND course_id = %s",
+            (student_id, course_id),
+        )
+
+        cursor.execute(
+            "SELECT COUNT(*) AS enrollment_count FROM Enrollments WHERE student_id = %s",
+            (student_id,),
+        )
+        remaining_count = int(cursor.fetchone()["enrollment_count"])
+
+        if remaining_count == 0:
+            cursor.execute("DELETE FROM Students WHERE student_id = %s", (student_id,))
+
+        conn.commit()
+    except EnrollmentNotFoundError:
+        conn.rollback()
+        raise
+    except Exception:
+        conn.rollback()
+        logger.exception("DB error in delete_enrollment")
+        raise
+    finally:
+        if cursor is not None:
+            cursor.close()
+        conn.close()
