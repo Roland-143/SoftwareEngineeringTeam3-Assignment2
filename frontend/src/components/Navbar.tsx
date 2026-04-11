@@ -1,18 +1,36 @@
-function Navbar() {
-  return (
-    <nav className="navbar">
-      <div className="navbar-brand">Course Management System</div>
+import { NavLink } from "react-router-dom";
 
-      <div className="navbar-links">
-        <a href="#" className="nav-link">
-          Student Entry
-        </a>
-        <a href="#" className="nav-link active">
-          View Records
-        </a>
-      </div>
-    </nav>
-  );
+function Navbar() {
+    return (
+        <nav className="navbar">
+            <NavLink to="/" className="navbar-brand">
+                Course Management System
+            </NavLink>
+
+
+            <div className="navbar-links">
+                <NavLink
+                    to="/students/new"
+                    // @ts-ignore
+                    className={({ isActive }) =>
+                        isActive ? "nav-link active" : "nav-link"
+                    }
+                >
+                    Student Entry
+                </NavLink>
+                <NavLink
+                    to="/students"
+                    end
+                    // @ts-ignore
+                    className={({ isActive }) =>
+                        isActive ? "nav-link active" : "nav-link"
+                    }
+                >
+                    View Records
+                </NavLink>
+            </div>
+        </nav>
+    );
 }
 
 export default Navbar;
