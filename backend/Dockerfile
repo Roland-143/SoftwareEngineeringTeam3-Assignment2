@@ -1,8 +1,14 @@
-# Stack-neutral placeholder Dockerfile for the backend team.
-# Replace this file after the team selects a backend language/framework.
+FROM python:3.12-slim
 
-FROM alpine:3.20
+WORKDIR /app
 
-WORKDIR /workspace
+# Install dependencies first for Docker layer caching
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
-CMD ["sh", "-c", "echo 'Backend placeholder image built. Replace backend/Dockerfile with the team-selected stack.' && sleep infinity"]
+# Copy application source
+COPY . .
+
+EXPOSE 5000
+
+CMD ["python", "run.py"]
