@@ -34,3 +34,13 @@ Use this file so the next team or next developer can continue work without diggi
 - Commands to know: `make up`, `make up-scaffold`, `make logs`, `make down`, `docker compose --env-file .env.example config`.
 - Risks / assumptions: Until stack decisions are documented, any runtime-specific files added by teams may conflict.
 - Recommended next step: Finalize stack choices in Jira and record the decision in `docs/ARCHITECTURE_DECISIONS.md` before coding starts.
+
+- From team: Backend
+- To team: Frontend, QA
+- Jira: Backend initial setup
+- What is complete: Flask backend project created with routes, controllers, services, DB module. Dockerfile replaced with Python 3.12. Backend starts by default with `make up`. Endpoints: `GET /health`, `GET /api/students`, `GET /api/students/average`. CORS enabled.
+- What is not complete: POST endpoint for adding students. Input validation. Unit/integration tests. Error handling improvements.
+- Important files: `backend/README.md`, `backend/run.py`, `backend/app/`, `docker-compose.yml`, `.env.example`.
+- Commands to know: `make up` (start db + backend), `curl http://localhost:5000/health`, `curl http://localhost:5000/api/students`.
+- Risks / assumptions: Database init scripts `001_create_schema.sql` and `002_seed_data.sql` create the `students` table and 20 seed rows in the `course_management` database. The older `01_schema.sql` / `02_data.sql` files create a separate `student_db` database which the backend does not use.
+- Recommended next step: Frontend team can replace mock data with `fetch("http://localhost:5000/api/students")`. QA can verify endpoint responses match the documented contract.
