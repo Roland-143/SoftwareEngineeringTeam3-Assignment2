@@ -1,4 +1,4 @@
-"""Student service – business logic for student data."""
+"""Student service - business logic for student data."""
 
 import logging
 
@@ -6,24 +6,77 @@ from app.db import get_connection
 
 logger = logging.getLogger(__name__)
 
+_DEFAULT_COURSE_ID = 1
+
+
+class StudentNotFoundError(Exception):
+    """Raised when a referenced student does not exist."""
+
+
+class CourseNotFoundError(Exception):
+    """Raised when a referenced course does not exist."""
+
+
+class DuplicateEnrollmentError(Exception):
+    """Raised when a student is already enrolled in the target course."""
+
+
+def _get_course_record(cursor, course_id):
+    cursor.execute(
+        "SELECT course_id, course_name FROM Courses WHERE course_id = %s",
+        (course_id,),
+    )
+    return cursor.fetchone()
+
+
+def _get_student_record(cursor, student_id):
+    cursor.execute(
+        "SELECT student_id, first_name, middle_name, last_name "
+        "FROM Students WHERE student_id = %s",
+        (student_id,),
+    )
+    return cursor.fetchone()
+
+
+def _enrollment_exists(cursor, student_id, course_id):
+    cursor.execute(
+        "SELECT 1 FROM Enrollments WHERE student_id = %s AND course_id = %s",
+        (student_id, course_id),
+    )
+    return cursor.fetchone() is not None
+
+
+def _build_enrollment_record(student_row, course_row, score):
+    return {
+        "studentId": student_row["student_id"],
+        "firstName": student_row["first_name"],
+        "middleName": student_row["middle_name"],
+        "lastName": student_row["last_name"],
+        "courseId": course_row["course_id"],
+        "courseName": course_row["course_name"],
+        "score": float(score),
+    }
+
 
 def fetch_all_students_sorted():
-    """Return all students ordered by student_id ascending.
-
-    Maps database column names to the camelCase field names the
-    frontend expects::
-
-        studentId, firstName, middleName, lastName, score
-
-    Returns an empty list when no records exist.
-    """
+    """Return student-course enrollment records ordered by student_id ascending."""
     conn = get_connection()
     cursor = None
     try:
         cursor = conn.cursor(dictionary=True)
         cursor.execute(
-            "SELECT student_id, first_name, middle_name, last_name, course_score "
-            "FROM students ORDER BY student_id ASC"
+            "SELECT "
+            "Students.student_id AS student_id, "
+            "Students.first_name AS first_name, "
+            "Students.middle_name AS middle_name, "
+            "Students.last_name AS last_name, "
+            "Courses.course_id AS course_id, "
+            "Courses.course_name AS course_name, "
+            "Enrollments.score AS course_score "
+            "FROM Students "
+            "INNER JOIN Enrollments ON Enrollments.student_id = Students.student_id "
+            "INNER JOIN Courses ON Courses.course_id = Enrollments.course_id "
+            "ORDER BY Students.student_id ASC, Courses.course_id ASC"
         )
         rows = cursor.fetchall()
     except Exception:
@@ -40,6 +93,8 @@ def fetch_all_students_sorted():
             "firstName": row["first_name"],
             "middleName": row["middle_name"],
             "lastName": row["last_name"],
+            "courseId": row["course_id"],
+            "courseName": row["course_name"],
             "score": float(row["course_score"]),
         }
         for row in rows
@@ -47,22 +102,23 @@ def fetch_all_students_sorted():
 
 
 def compute_average_score():
-    """Return the average course_score and student count.
-
-    Returns a dict::
-
-        {"averageScore": 85.45, "count": 20}
-
-    When the table is empty, ``averageScore`` is ``None`` and ``count`` is 0.
-    """
+    """Return average scores grouped by course."""
     conn = get_connection()
     cursor = None
     try:
         cursor = conn.cursor(dictionary=True)
         cursor.execute(
-            "SELECT AVG(course_score) AS avg_score, COUNT(*) AS total FROM students"
+            "SELECT "
+            "Courses.course_id AS course_id, "
+            "Courses.course_name AS course_name, "
+            "AVG(Enrollments.score) AS avg_score, "
+            "COUNT(*) AS enrollment_count "
+            "FROM Courses "
+            "INNER JOIN Enrollments ON Enrollments.course_id = Courses.course_id "
+            "GROUP BY Courses.course_id, Courses.course_name "
+            "ORDER BY Courses.course_id ASC"
         )
-        result = cursor.fetchone()
+        rows = cursor.fetchall()
     except Exception:
         logger.exception("DB error in compute_average_score")
         raise
@@ -71,41 +127,56 @@ def compute_average_score():
             cursor.close()
         conn.close()
 
-    count = int(result["total"])
-    avg = result["avg_score"]
     return {
-        "averageScore": round(float(avg), 2) if avg is not None else None,
-        "count": count,
+        "courseAverages": [
+            {
+                "courseId": row["course_id"],
+                "courseName": row["course_name"],
+                "averageScore": round(float(row["avg_score"]), 2)
+                if row["avg_score"] is not None
+                else None,
+                "enrollmentCount": int(row["enrollment_count"]),
+            }
+            for row in rows
+        ]
     }
 
 
 def insert_student(cleaned):
-    """Insert a validated student record and return it with its generated id.
-
-    Args:
-        cleaned: dict produced by ``validate_student_payload`` with keys
-                 studentId, firstName, middleName, lastName, score.
-
-    Returns:
-        The inserted record as a camelCase dict.
-    """
+    """Insert a validated student and enroll them in a course."""
+    course_id = cleaned["courseId"] or _DEFAULT_COURSE_ID
     conn = get_connection()
     cursor = None
     try:
-        cursor = conn.cursor()
+        cursor = conn.cursor(dictionary=True)
+        course_row = _get_course_record(cursor, course_id)
+        if course_row is None:
+            raise CourseNotFoundError("courseId does not exist.")
+
         cursor.execute(
-            "INSERT INTO students (first_name, middle_name, last_name, student_id, course_score) "
-            "VALUES (%s, %s, %s, %s, %s)",
+            "INSERT INTO Students (student_id, first_name, middle_name, last_name) "
+            "VALUES (%s, %s, %s, %s)",
             (
+                cleaned["studentId"],
                 cleaned["firstName"],
                 cleaned["middleName"],
                 cleaned["lastName"],
+            ),
+        )
+        cursor.execute(
+            "INSERT INTO Enrollments (student_id, course_id, score) VALUES (%s, %s, %s)",
+            (
                 cleaned["studentId"],
+                course_id,
                 cleaned["score"],
             ),
         )
         conn.commit()
+    except CourseNotFoundError:
+        conn.rollback()
+        raise
     except Exception:
+        conn.rollback()
         logger.exception("DB error in insert_student")
         raise
     finally:
@@ -113,11 +184,53 @@ def insert_student(cleaned):
             cursor.close()
         conn.close()
 
-    return {
-        "studentId": cleaned["studentId"],
-        "firstName": cleaned["firstName"],
-        "middleName": cleaned["middleName"],
-        "lastName": cleaned["lastName"],
-        "score": cleaned["score"],
+    student_row = {
+        "student_id": cleaned["studentId"],
+        "first_name": cleaned["firstName"],
+        "middle_name": cleaned["middleName"],
+        "last_name": cleaned["lastName"],
     }
+    return _build_enrollment_record(student_row, course_row, cleaned["score"])
 
+
+def create_enrollment(student_id, cleaned):
+    """Create an enrollment for an existing student and return the enrollment record."""
+    conn = get_connection()
+    cursor = None
+    try:
+        cursor = conn.cursor(dictionary=True)
+        student_row = _get_student_record(cursor, student_id)
+        if student_row is None:
+            raise StudentNotFoundError("studentId does not exist.")
+
+        course_row = _get_course_record(cursor, cleaned["courseId"])
+        if course_row is None:
+            raise CourseNotFoundError("courseId does not exist.")
+
+        if _enrollment_exists(cursor, student_id, cleaned["courseId"]):
+            raise DuplicateEnrollmentError(
+                "Student is already enrolled in this course."
+            )
+
+        cursor.execute(
+            "INSERT INTO Enrollments (student_id, course_id, score) VALUES (%s, %s, %s)",
+            (
+                student_id,
+                cleaned["courseId"],
+                cleaned["score"],
+            ),
+        )
+        conn.commit()
+    except (StudentNotFoundError, CourseNotFoundError, DuplicateEnrollmentError):
+        conn.rollback()
+        raise
+    except Exception:
+        conn.rollback()
+        logger.exception("DB error in create_enrollment")
+        raise
+    finally:
+        if cursor is not None:
+            cursor.close()
+        conn.close()
+
+    return _build_enrollment_record(student_row, course_row, cleaned["score"])

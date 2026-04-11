@@ -3,7 +3,7 @@
 import re
 
 STUDENT_ID_MIN = 1
-STUDENT_ID_MAX = 20
+STUDENT_ID_MAX = 10
 
 SCORE_MIN = 0
 SCORE_MAX = 100
@@ -11,6 +11,24 @@ SCORE_MAX = 100
 # Allows letters, spaces, hyphens, and apostrophes (e.g. O'Brien, Mary-Jane)
 _NAME_RE = re.compile(r"^[A-Za-z\s\-']+$")
 _NAME_MAX_LEN = 50
+
+
+def _validate_positive_int(value, field_label):
+    """Return ``(error, cleaned_int)`` for a positive integer field."""
+    if isinstance(value, bool):
+        return f"{field_label} must be an integer.", None
+
+    try:
+        cleaned_value = int(value)
+        if cleaned_value != value and not isinstance(value, int):
+            raise ValueError
+    except (ValueError, TypeError):
+        return f"{field_label} must be an integer.", None
+
+    if cleaned_value < 1:
+        return f"{field_label} must be a positive integer.", None
+
+    return None, cleaned_value
 
 
 def _validate_name(value, field_label, required=True):
@@ -77,6 +95,8 @@ def validate_student_payload(data):
     student_id_raw = data.get("studentId")
     if student_id_raw is None:
         errors.append("studentId is required.")
+    elif isinstance(student_id_raw, bool):
+        errors.append("studentId must be an integer.")
     else:
         try:
             student_id = int(student_id_raw)
@@ -95,6 +115,68 @@ def validate_student_payload(data):
     score_raw = data.get("score")
     if score_raw is None:
         errors.append("score is required.")
+    elif isinstance(score_raw, bool):
+        errors.append("score must be a number.")
+    else:
+        try:
+            score = float(score_raw)
+        except (ValueError, TypeError):
+            errors.append("score must be a number.")
+            score = None
+        else:
+            if not (SCORE_MIN <= score <= SCORE_MAX):
+                errors.append(
+                    f"score must be between {SCORE_MIN} and {SCORE_MAX}."
+                )
+
+    # --- courseId (optional) ---
+    course_id = None
+    if "courseId" in data:
+        course_id_raw = data.get("courseId")
+        err, course_id = _validate_positive_int(course_id_raw, "courseId")
+        if err:
+            errors.append(err)
+
+    if errors:
+        return errors, None
+
+    cleaned = {
+        "studentId": int(data["studentId"]),
+        "firstName": data["firstName"].strip(),
+        "middleName": data["middleName"].strip() if data.get("middleName") else None,
+        "lastName": data["lastName"].strip(),
+        "score": float(data["score"]),
+        "courseId": course_id,
+    }
+    return [], cleaned
+
+
+def validate_enrollment_payload(data):
+    """Validate an enrollment creation payload.
+
+    Expected payload shape::
+
+        {
+            "courseId": 2,
+            "score": 91.0
+        }
+    """
+    errors = []
+
+    course_id_raw = data.get("courseId")
+    if course_id_raw is None:
+        errors.append("courseId is required.")
+        course_id = None
+    else:
+        err, course_id = _validate_positive_int(course_id_raw, "courseId")
+        if err:
+            errors.append(err)
+
+    score_raw = data.get("score")
+    if score_raw is None:
+        errors.append("score is required.")
+    elif isinstance(score_raw, bool):
+        errors.append("score must be a number.")
     else:
         try:
             score = float(score_raw)
@@ -110,11 +192,4 @@ def validate_student_payload(data):
     if errors:
         return errors, None
 
-    cleaned = {
-        "studentId": int(data["studentId"]),
-        "firstName": data["firstName"].strip(),
-        "middleName": data["middleName"].strip() if data.get("middleName") else None,
-        "lastName": data["lastName"].strip(),
-        "score": float(data["score"]),
-    }
-    return [], cleaned
+    return [], {"courseId": course_id, "score": float(data["score"])}

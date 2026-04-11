@@ -15,6 +15,6 @@ class Config:
 
     DB_HOST = os.getenv("DB_HOST", "localhost")
     DB_PORT = int(os.getenv("DB_PORT", "3306"))
-    DB_NAME = os.getenv("DB_NAME", "course_management")
+    DB_NAME = os.getenv("DB_NAME", "student_db")
     DB_USER = os.getenv("DB_USER", "studentapp")
     DB_PASSWORD = os.getenv("DB_PASSWORD", "")
