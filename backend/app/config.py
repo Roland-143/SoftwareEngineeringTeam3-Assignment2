@@ -1,0 +1,20 @@
+"""Application configuration loaded from environment variables."""
+
+import os
+
+from dotenv import load_dotenv
+
+load_dotenv()
+
+
+class Config:
+    """Reads configuration from environment variables with sensible defaults."""
+
+    APP_ENV = os.getenv("APP_ENV", "development")
+    PORT = os.getenv("PORT", "5000")
+
+    DB_HOST = os.getenv("DB_HOST", "localhost")
+    DB_PORT = int(os.getenv("DB_PORT", "3306"))
+    DB_NAME = os.getenv("DB_NAME", "student_db")
+    DB_USER = os.getenv("DB_USER", "studentapp")
+    DB_PASSWORD = os.getenv("DB_PASSWORD", "")

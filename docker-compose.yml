@@ -7,14 +7,15 @@ services:
     environment:
       # Fail fast if required secrets are missing from .env.
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Set MYSQL_ROOT_PASSWORD in .env}
-      MYSQL_DATABASE: ${APP_DB_NAME:-course_management}
+      MYSQL_DATABASE: student_db
       MYSQL_USER: ${APP_DB_USER:-studentapp}
       MYSQL_PASSWORD: ${APP_DB_PASSWORD:?Set APP_DB_PASSWORD in .env}
     ports:
       - "${MYSQL_PORT:-3306}:3306"
     volumes:
       - mysql_data:/var/lib/mysql
-      - ./database/init:/docker-entrypoint-initdb.d:ro
+      - ./database/init/01_schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+      - ./database/init/02_data.sql:/docker-entrypoint-initdb.d/02_data.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p$$MYSQL_ROOT_PASSWORD --silent"]
       interval: 10s
@@ -23,7 +24,6 @@ services:
       start_period: 20s
 
   backend:
-    profiles: ["scaffold"]
     build:
       context: ./backend
       dockerfile: Dockerfile
@@ -31,17 +31,16 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    working_dir: /workspace
+    ports:
+      - "${BACKEND_PORT:-5000}:5000"
     environment:
       APP_ENV: ${APP_ENV:-development}
+      PORT: "5000"
       DB_HOST: db
       DB_PORT: "3306"
-      DB_NAME: ${APP_DB_NAME:-course_management}
+      DB_NAME: student_db
       DB_USER: ${APP_DB_USER:-studentapp}
       DB_PASSWORD: ${APP_DB_PASSWORD:?Set APP_DB_PASSWORD in .env}
-    volumes:
-      - ./backend:/workspace
-    command: sh -c "echo 'Backend skeleton container is running. Replace backend/Dockerfile and add your backend project files when stack is selected.' && sleep infinity"
 
   frontend:
     profiles: ["scaffold"]
@@ -54,7 +53,7 @@ services:
         condition: service_started
     working_dir: /workspace
     environment:
-      API_BASE_URL: ${API_BASE_URL:-http://localhost:3001}
+      API_BASE_URL: ${API_BASE_URL:-http://localhost:5000}
     volumes:
       - ./frontend:/workspace
     command: sh -c "echo 'Frontend skeleton container is running. Replace frontend/Dockerfile and add your frontend project files when stack is selected.' && sleep infinity"
