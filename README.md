@@ -1,7 +1,7 @@
 # Course Project 2 Repository Guide
 
-This repository now contains the active backend implementation for the CS 41600 Course Project 2 team plus the frontend project area.
-It started as a shared skeleton, but the backend stack and database path are now implemented and documented.
+This repository is a shared skeleton for the CS 41600 Course Project 2 team.
+It is intentionally stack-neutral so frontend/backend teams can make a documented stack decision before implementation.
 
 ## Assignment Scope (Summary)
 
@@ -9,36 +9,36 @@ Build a small course-management website that:
 - accepts student name, student ID, and course score input
 - stores data in MySQL
 - displays stored records in ascending order
-- displays score averages for the class data stored in MySQL
+- displays the average score for 20 students
 
 ## Current Repository State
 
-- Active database bootstrap uses `database/init/01_schema.sql` and `database/init/02_data.sql`.
-- The active database is `student_db`.
-- The backend is implemented with Flask and starts by default with Docker Compose.
-- The backend API exposes `GET /health`, `GET /api/students`, `POST /api/students`, `POST /api/students/<studentId>/enrollments`, and `GET /api/students/average`.
-- The active seed data loads 5 demo students with unique `studentId` values `1` through `5`, leaving `6` through `10` available for live inserts.
-- The legacy `001_create_schema.sql` / `002_seed_data.sql` files remain in the repo for reference only and are not mounted by the active Compose setup.
+- Database bootstrap is provided (`database/init/*.sql`).
+- Backend and frontend folders are placeholders only.
+- No backend or frontend language/framework is enforced yet.
+- Docker Compose defaults to `db` only.
+- Optional `scaffold` profile can start placeholder backend/frontend workspace containers.
 
 ## Repository Layout
 
-- `backend/`: active Flask backend service and backend tests
-- `frontend/`: frontend project area
-- `database/init/`: active MySQL schema and seed SQL
+- `backend/`: stack-neutral backend placeholder area
+- `frontend/`: stack-neutral frontend placeholder area
+- `database/init/`: starter schema and seed SQL
 - `docs/`: scope, architecture decisions, dev log, handoff notes, and AI/dev workflow
 - `scripts/`: helper shell scripts for Docker workflow
 - `.github/pull_request_template.md`: PR checklist/template
 
 ## Quick Start (Ubuntu/WSL Preferred)
+# Database needs to be initialized first #
 
 1. Create local env file:
    - `cp .env.example .env`
 2. Set local values in `.env`:
    - `MYSQL_ROOT_PASSWORD`
    - `APP_DB_PASSWORD`
-3. Start the active backend stack:
+3. Start database only:
    - `docker compose up --build -d`
-4. Optional: start the scaffold frontend container too:
+4. Optional: start stack-neutral scaffold containers too:
    - `docker compose --profile scaffold up --build -d`
 5. Check status/logs:
    - `docker compose ps`
@@ -76,13 +76,14 @@ Every PR should update documentation as needed:
 - `docs/ARCHITECTURE_DECISIONS.md` (if a decision changes)
 - `README.md` (if setup/workflow changes)
 
-## Active Backend Notes
+## What To Do Once Stack Is Chosen
 
-- Active schema path: `database/init/01_schema.sql` and `database/init/02_data.sql`
-- Active DB name: `student_db`
-- `studentId` values are unique and limited to `1..10`
-- `GET /api/students` returns student-course enrollment records sorted by `studentId`
-- `GET /api/students/average` returns average scores grouped by course
-- `POST /api/students` can use an optional `courseId`; if omitted, the default seeded course is used
-- `POST /api/students/<studentId>/enrollments` adds another course enrollment for an existing student
-- Student create/enrollment endpoints reject non-JSON, malformed JSON, and valid JSON that is not an object
+Backend team:
+- replace `backend/Dockerfile`
+- add backend runtime/dependency/source files
+- document decision and migration plan in `docs/ARCHITECTURE_DECISIONS.md`
+
+Frontend team:
+- replace `frontend/Dockerfile`
+- add frontend runtime/dependency/source files
+- document decision and migration plan in `docs/ARCHITECTURE_DECISIONS.md`
