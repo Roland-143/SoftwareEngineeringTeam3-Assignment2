@@ -9,8 +9,10 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 from app.services.student_service import (  # noqa: E402
     CourseNotFoundError,
     DuplicateEnrollmentError,
+    EnrollmentNotFoundError,
     create_enrollment,
     compute_average_score,
+    delete_enrollment,
     fetch_all_students_sorted,
     insert_student,
 )
@@ -257,6 +259,63 @@ class StudentServiceTestCase(unittest.TestCase):
 
         with self.assertRaises(DuplicateEnrollmentError):
             create_enrollment(1, {"courseId": 1, "score": 86.5})
+
+    @patch("app.services.student_service.get_connection")
+    def test_delete_enrollment_removes_only_target_enrollment(self, mock_get_connection):
+        mock_cursor = MagicMock()
+        mock_cursor.fetchone.side_effect = [
+            {"exists": 1},
+            {"enrollment_count": 1},
+        ]
+        mock_connection = MagicMock()
+        mock_connection.cursor.return_value = mock_cursor
+        mock_get_connection.return_value = mock_connection
+
+        delete_enrollment(1, 2)
+
+        self.assertEqual(mock_cursor.execute.call_count, 3)
+        select_sql, select_params = mock_cursor.execute.call_args_list[0][0]
+        delete_sql, delete_params = mock_cursor.execute.call_args_list[1][0]
+        count_sql, count_params = mock_cursor.execute.call_args_list[2][0]
+        self.assertIn("SELECT 1 FROM Enrollments", select_sql)
+        self.assertEqual(select_params, (1, 2))
+        self.assertIn("DELETE FROM Enrollments", delete_sql)
+        self.assertEqual(delete_params, (1, 2))
+        self.assertIn("SELECT COUNT(*) AS enrollment_count", count_sql)
+        self.assertEqual(count_params, (1,))
+        mock_connection.commit.assert_called_once()
+
+    @patch("app.services.student_service.get_connection")
+    def test_delete_enrollment_deletes_student_when_no_enrollments_remain(
+        self, mock_get_connection
+    ):
+        mock_cursor = MagicMock()
+        mock_cursor.fetchone.side_effect = [
+            {"exists": 1},
+            {"enrollment_count": 0},
+        ]
+        mock_connection = MagicMock()
+        mock_connection.cursor.return_value = mock_cursor
+        mock_get_connection.return_value = mock_connection
+
+        delete_enrollment(1, 2)
+
+        self.assertEqual(mock_cursor.execute.call_count, 4)
+        final_sql, final_params = mock_cursor.execute.call_args_list[3][0]
+        self.assertIn("DELETE FROM Students", final_sql)
+        self.assertEqual(final_params, (1,))
+        mock_connection.commit.assert_called_once()
+
+    @patch("app.services.student_service.get_connection")
+    def test_delete_enrollment_missing_row_raises_not_found(self, mock_get_connection):
+        mock_cursor = MagicMock()
+        mock_cursor.fetchone.return_value = None
+        mock_connection = MagicMock()
+        mock_connection.cursor.return_value = mock_cursor
+        mock_get_connection.return_value = mock_connection
+
+        with self.assertRaises(EnrollmentNotFoundError):
+            delete_enrollment(1, 2)
 
 
 if __name__ == "__main__":
