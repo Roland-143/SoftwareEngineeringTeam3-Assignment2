@@ -10,9 +10,11 @@ from werkzeug.exceptions import BadRequest
 from app.services.student_service import (
     CourseNotFoundError,
     DuplicateEnrollmentError,
+    EnrollmentNotFoundError,
     StudentNotFoundError,
     create_enrollment,
     compute_average_score,
+    delete_enrollment,
     fetch_all_students_sorted,
     insert_student,
 )
@@ -137,4 +139,16 @@ def create_student_enrollment(student_id):
             return mapped_response
 
         logger.exception("Failed to create enrollment")
+        return jsonify({"error": "An internal error occurred"}), 500
+
+
+def delete_student_enrollment(student_id, course_id):
+    """DELETE /api/students/<student_id>/enrollments/<course_id>."""
+    try:
+        delete_enrollment(student_id, course_id)
+        return jsonify({"message": "Enrollment deleted."}), 200
+    except EnrollmentNotFoundError:
+        return jsonify({"error": "Enrollment does not exist."}), 404
+    except Exception:
+        logger.exception("Failed to delete enrollment")
         return jsonify({"error": "An internal error occurred"}), 500
