@@ -1,10 +1,13 @@
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { createStudent, fetchStudents } from "../api/students";
+import type { CourseOption, CreateStudentPayload } from "../types/Student";
 
 type FormData = {
     firstName: string;
     middleName: string;
     lastName: string;
     studentId: string;
+    courseId: string;
     courseScore: string;
 };
 
@@ -12,6 +15,7 @@ type FormErrors = {
     firstName?: string;
     lastName?: string;
     studentId?: string;
+    courseId?: string;
     courseScore?: string;
 };
 
@@ -20,6 +24,7 @@ const initialFormData: FormData = {
     middleName: "",
     lastName: "",
     studentId: "",
+    courseId: "",
     courseScore: "",
 };
 
@@ -28,8 +33,62 @@ export default function StudentEntryForm() {
     const [errors, setErrors] = useState<FormErrors>({});
     const [topError, setTopError] = useState("");
     const [successMessage, setSuccessMessage] = useState("");
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [courseOptions, setCourseOptions] = useState<CourseOption[]>([]);
+    const [isLoadingCourses, setIsLoadingCourses] = useState(true);
 
-    function handleChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const loadCourseOptions = useCallback(async () => {
+        setIsLoadingCourses(true);
+        setTopError("");
+
+        try {
+            const records = await fetchStudents();
+            const courseMap = new Map<number, string>();
+
+            for (const record of records) {
+                if (!courseMap.has(record.courseId)) {
+                    courseMap.set(record.courseId, record.courseName);
+                }
+            }
+
+            const options = Array.from(courseMap.entries())
+                .map(([courseId, courseName]) => ({ courseId, courseName }))
+                .sort((a, b) => a.courseId - b.courseId);
+
+            setCourseOptions(options);
+
+            if (options.length === 0) {
+                setTopError(
+                    "No courses are currently available from the database. Please seed courses first.",
+                );
+                setFormData((prev) => ({ ...prev, courseId: "" }));
+            } else {
+                setFormData((prev) => ({
+                    ...prev,
+                    courseId:
+                        prev.courseId && options.some((opt) => String(opt.courseId) === prev.courseId)
+                            ? prev.courseId
+                            : String(options[0].courseId),
+                }));
+            }
+        } catch (error) {
+            setCourseOptions([]);
+            setFormData((prev) => ({ ...prev, courseId: "" }));
+            setTopError(
+                error instanceof Error
+                    ? `Failed to load courses: ${error.message}`
+                    : "Failed to load courses from the backend.",
+            );
+        } finally {
+            setIsLoadingCourses(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        void loadCourseOptions();
+    }, [loadCourseOptions]);
+
+    function handleChange(event: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) {
         const { name, value } = event.target;
 
         setFormData((prev) => ({
@@ -77,10 +136,22 @@ export default function StudentEntryForm() {
             }
         }
 
+        if (formData.courseId.trim()) {
+            const courseId = Number(formData.courseId);
+
+            if (!Number.isInteger(courseId) || courseId < 1) {
+                newErrors.courseId = "Course ID must be a positive integer.";
+            } else if (!courseOptions.some((course) => course.courseId === courseId)) {
+                newErrors.courseId = "Please select a valid course from the list.";
+            }
+        } else {
+            newErrors.courseId = "Course selection is required.";
+        }
+
         return newErrors;
     }
 
-    function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
         event.preventDefault();
 
         const validationErrors = validateForm();
@@ -92,14 +163,54 @@ export default function StudentEntryForm() {
             return;
         }
 
-        setErrors({});
-        setTopError("");
-        setSuccessMessage("Student submitted successfully.");
-        setFormData(initialFormData);
+        if (isLoadingCourses) {
+            setTopError("Course options are still loading. Please wait and try again.");
+            return;
+        }
+
+        if (courseOptions.length === 0) {
+            setTopError("No course options are available for submission.");
+            return;
+        }
+
+        setIsSubmitting(true);
+
+        try {
+            const payload: CreateStudentPayload = {
+                studentId: Number(formData.studentId),
+                firstName: formData.firstName.trim(),
+                middleName: formData.middleName.trim() || null,
+                lastName: formData.lastName.trim(),
+                score: Number(formData.courseScore),
+                courseId: Number(formData.courseId),
+            };
+
+            await createStudent(payload);
+
+            setErrors({});
+            setTopError("");
+            setSuccessMessage("Student submitted successfully and saved to the database.");
+            setFormData((prev) => ({
+                ...initialFormData,
+                courseId: prev.courseId,
+            }));
+        } catch (error) {
+            setSuccessMessage("");
+            setTopError(
+                error instanceof Error
+                    ? error.message
+                    : "Failed to submit student. Please try again.",
+            );
+        } finally {
+            setIsSubmitting(false);
+        }
     }
 
     function handleReset() {
-        setFormData(initialFormData);
+        setFormData((prev) => ({
+            ...initialFormData,
+            courseId: prev.courseId,
+        }));
         setErrors({});
         setTopError("");
         setSuccessMessage("");
@@ -147,6 +258,35 @@ export default function StudentEntryForm() {
                     </div>
 
                     <div className="form-group">
+                        <label htmlFor="courseId">Course</label>
+                        <select
+                            id="courseId"
+                            name="courseId"
+                            value={formData.courseId}
+                            onChange={handleChange}
+                            disabled={isLoadingCourses || courseOptions.length === 0}
+                            className={errors.courseId ? "input-error" : ""}
+                        >
+                            <option value="">
+                                {isLoadingCourses
+                                    ? "Loading courses..."
+                                    : "Select a course"}
+                            </option>
+                            {courseOptions.map((course) => (
+                                <option
+                                    key={course.courseId}
+                                    value={String(course.courseId)}
+                                >
+                                    {course.courseName} (ID: {course.courseId})
+                                </option>
+                            ))}
+                        </select>
+                        {errors.courseId && (
+                            <p className="field-error">{errors.courseId}</p>
+                        )}
+                    </div>
+
+                    <div className="form-group">
                         <label htmlFor="firstName">First Name</label>
                         <input
                             id="firstName"
@@ -174,7 +314,7 @@ export default function StudentEntryForm() {
                         />
                     </div>
 
-                    <div className="form-group form-group-full">
+                    <div className="form-group">
                         <label htmlFor="lastName">Last Name</label>
                         <input
                             id="lastName"
@@ -192,13 +332,18 @@ export default function StudentEntryForm() {
                 </div>
 
                 <div className="form-actions">
-                    <button type="submit" className="primary-button">
-                        Submit
+                    <button
+                        type="submit"
+                        className="primary-button"
+                        disabled={isSubmitting || isLoadingCourses || courseOptions.length === 0}
+                    >
+                        {isSubmitting ? "Submitting..." : "Submit"}
                     </button>
                     <button
                         type="button"
                         className="secondary-button"
                         onClick={handleReset}
+                        disabled={isSubmitting}
                     >
                         Reset
                     </button>

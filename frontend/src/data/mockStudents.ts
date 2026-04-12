@@ -6,6 +6,8 @@ export const mockStudents: Student[] = [
     firstName: "Aarav",
     middleName: "K",
     lastName: "Sharma",
+    courseId: 1,
+    courseName: "Math",
     score: 88,
   },
   {
@@ -13,6 +15,8 @@ export const mockStudents: Student[] = [
     firstName: "Priya",
     middleName: "R",
     lastName: "Patel",
+    courseId: 1,
+    courseName: "Math",
     score: 92,
   },
   {
@@ -20,6 +24,8 @@ export const mockStudents: Student[] = [
     firstName: "Daniel",
     middleName: "T",
     lastName: "Lopez",
+    courseId: 2,
+    courseName: "English",
     score: 76,
   },
   {
@@ -27,6 +33,8 @@ export const mockStudents: Student[] = [
     firstName: "Sophia",
     middleName: "M",
     lastName: "Chen",
+    courseId: 1,
+    courseName: "Math",
     score: 95,
   },
   {
@@ -34,6 +42,8 @@ export const mockStudents: Student[] = [
     firstName: "Ethan",
     middleName: "J",
     lastName: "Walker",
+    courseId: 2,
+    courseName: "English",
     score: 81,
   },
 ];

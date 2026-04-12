@@ -11,6 +11,7 @@ body {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
+  padding-bottom: 72px;
 }
 
 a {
@@ -143,6 +144,28 @@ a {
   background-color: #f8fbff;
 }
 
+.ellipsis-button {
+  border: 1px solid transparent;
+  border-radius: 0;
+  background-color: transparent;
+  color: #334e68;
+  font-size: 1rem;
+  padding: 0.25rem 0.4rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: background-color 0.2s ease, transform 0.2s ease;
+}
+
+.ellipsis-button:hover:enabled {
+  background-color: #f0f4f8;
+  transform: translateY(-1px);
+}
+
+.ellipsis-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .empty-state {
   background-color: white;
   border-radius: 10px;
@@ -175,6 +198,11 @@ a {
   text-align: center;
   padding: 1rem 2rem;
   font-size: 0.95rem;
+  position: fixed;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  z-index: 1000;
 }
 
 .form-section {
@@ -236,6 +264,35 @@ a {
   gap: 0.75rem;
   margin-top: 1.5rem;
   flex-wrap: wrap;
+}
+
+.records-controls {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+  flex-wrap: wrap;
+  align-items: flex-end;
+}
+
+.records-filter-group {
+  display: flex;
+  flex-direction: column;
+  min-width: 240px;
+}
+
+.records-filter-group label {
+  margin-bottom: 0.45rem;
+  font-weight: 600;
+  color: #334e68;
+}
+
+.records-filter-group select {
+  padding: 0.75rem 0.9rem;
+  border: 1px solid #cbd2d9;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  background-color: #fff;
+  color: #1f2933;
 }
 
 .primary-button,

@@ -1,89 +1,217 @@
 # Course Project 2 Repository Guide
 
-This repository is a shared skeleton for the CS 41600 Course Project 2 team.
-It is intentionally stack-neutral so frontend/backend teams can make a documented stack decision before implementation.
+This repository contains a course-management application for CS 41600 Project 2:
+- MySQL database (Docker)
+- Flask backend API (Docker)
+- React frontend (run locally with Vite)
 
 ## Assignment Scope (Summary)
 
 Build a small course-management website that:
 - accepts student name, student ID, and course score input
 - stores data in MySQL
-- displays stored records in ascending order
-- displays the average score for 20 students
+- displays records in ascending order
+- displays score averages
 
-## Current Repository State
+## Current Implementation State
 
-- Database bootstrap is provided (`database/init/*.sql`).
-- Backend and frontend folders are placeholders only.
-- No backend or frontend language/framework is enforced yet.
-- Docker Compose defaults to `db` only.
-- Optional `scaffold` profile can start placeholder backend/frontend workspace containers.
+- Active schema/init files: `database/init/01_schema.sql` and `database/init/02_data.sql`
+- Active database: `student_db`
+- Backend API is implemented and starts by default in Docker Compose
+- Frontend is implemented and should be run locally with `npm run dev`
+- Legacy SQL files `001_create_schema.sql` and `002_seed_data.sql` remain for reference only (not mounted by active compose)
 
 ## Repository Layout
 
-- `backend/`: stack-neutral backend placeholder area
-- `frontend/`: stack-neutral frontend placeholder area
-- `database/init/`: starter schema and seed SQL
-- `docs/`: scope, architecture decisions, dev log, handoff notes, and AI/dev workflow
-- `scripts/`: helper shell scripts for Docker workflow
-- `.github/pull_request_template.md`: PR checklist/template
+- `backend/`: Flask backend and tests
+- `frontend/`: React + TypeScript + Vite app
+- `database/init/`: active MySQL schema and seed SQL
+- `docs/`: scope, architecture decisions, dev log, handoff notes
+- `scripts/`: helper shell scripts for Docker workflows
 
-## Quick Start (Ubuntu/WSL Preferred)
-# Database needs to be initialized first #
+## Prerequisites
 
-1. Create local env file:
-   - `cp .env.example .env`
-2. Set local values in `.env`:
-   - `MYSQL_ROOT_PASSWORD`
-   - `APP_DB_PASSWORD`
-3. Start database only:
-   - `docker compose up --build -d`
-4. Optional: start stack-neutral scaffold containers too:
-   - `docker compose --profile scaffold up --build -d`
-5. Check status/logs:
-   - `docker compose ps`
-   - `docker compose logs -f --tail=100`
-6. Stop services:
-   - `docker compose down`
+- Docker Desktop (or Docker Engine + Compose v2)
+- Git
+- Node.js 20+ and npm (for local frontend run)
 
-Makefile shortcuts:
+## Clone and Setup
+
+1. Clone the repo:
+
+```bash
+git clone <your-repo-url>
+cd SoftwareEngineeringTeam3-Assignment2
+```
+
+2. Create env file:
+
+Linux/macOS/WSL:
+
+```bash
+cp .env.example .env
+```
+
+Windows PowerShell:
+
+```powershell
+Copy-Item .env.example .env
+```
+
+3. Edit `.env` and set at minimum:
+- `MYSQL_ROOT_PASSWORD`
+- `APP_DB_PASSWORD`
+
+If local port `3306` is busy, change:
+- `MYSQL_PORT=3307`
+
+## Start the Backend + Database (Docker)
+
+From repository root:
+
+```bash
+docker compose down -v
+docker compose up --build -d
+docker compose ps
+```
+
+Expected services:
+- `course-project2-db-1` (healthy)
+- `course-project2-backend-1` (up, port `5000`)
+
+## Verify API is Running
+
+If you are in `cmd`:
+
+```cmd
+curl http://localhost:5000/health
+curl http://localhost:5000/api/students
+curl http://localhost:5000/api/students/average
+```
+
+If you are in PowerShell:
+
+```powershell
+Invoke-RestMethod http://localhost:5000/health
+Invoke-RestMethod http://localhost:5000/api/students
+Invoke-RestMethod http://localhost:5000/api/students/average
+```
+
+## Run Frontend Locally
+
+The compose `frontend` service is scaffold-only. Run the real frontend locally:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Open:
+- `http://localhost:5173`
+
+Frontend uses backend at `http://localhost:5000` by default.
+To override, set `VITE_API_BASE_URL` in your frontend environment.
+
+## Common Commands
+
+From repository root:
+
+```bash
+docker compose up --build -d
+docker compose down
+docker compose down -v
+docker compose logs -f --tail=100
+docker compose ps
+```
+
+Makefile shortcuts (Linux/macOS/WSL with `make`):
 - `make up`
 - `make down`
 - `make logs`
 - `make reset-db`
 - `make ps`
 
-## Environment Rules
+## Common Errors and Fixes
 
-- Commit `.env.example`.
-- Never commit `.env` with real secrets.
-- Keep placeholders in `.env.example` non-sensitive.
+### 1) Docker daemon not running
+Error example:
+- `open //./pipe/dockerDesktopLinuxEngine: The system cannot find the file specified`
+
+Fix:
+- Start Docker Desktop and wait for "Engine running"
+- Then run `docker version` and confirm both Client and Server sections are present
+
+### 2) MySQL port already in use
+Error example:
+- `bind: ... 0.0.0.0:3306 ... only one usage ...`
+
+Fix:
+- In `.env`, set `MYSQL_PORT=3307`
+- Re-run:
+
+```bash
+docker compose down
+docker compose up --build -d
+```
+
+### 3) `Invoke-RestMethod` not recognized
+Cause:
+- You are in `cmd`, not PowerShell
+
+Fix:
+- Use `curl` in `cmd`, or run PowerShell commands from PowerShell
+
+### 4) `npm` blocked by PowerShell execution policy
+Error example:
+- `npm.ps1 cannot be loaded because running scripts is disabled`
+
+Fix:
+- Use `cmd` for npm commands:
+
+```cmd
+cmd /c npm install
+cmd /c npm run dev
+```
+
+### 5) Frontend shows no data / cannot connect to backend
+Checklist:
+- `docker compose ps` shows backend up on `5000`
+- `curl http://localhost:5000/health` returns JSON
+- Frontend is running on `5173`
+- API base URL points to `http://localhost:5000`
+
+### 6) Need a clean DB reset after SQL changes
+
+```bash
+docker compose down -v
+docker compose up --build -d
+```
+
+## API Endpoints (Summary)
+
+- `GET /health`
+- `GET /api/students`
+- `POST /api/students`
+- `POST /api/students/<studentId>/enrollments`
+- `GET /api/students/average`
+
+Notes:
+- Student IDs are constrained to `1..10`
+- Seed data uses IDs `1..5`; use `6..10` for easy demo inserts
 
 ## Team Workflow Requirements
 
-Before starting any work:
+Before starting work:
 1. Read `README.md`
 2. Read `docs/PROJECT_SCOPE.md`
 3. Read `docs/AI_AND_DEV_INSTRUCTIONS.md`
 4. Read `docs/ARCHITECTURE_DECISIONS.md`
 5. Read `docs/DEV_LOG.md`
-6. Work from the assigned Jira issue
+6. Work from assigned Jira issue
 
-Every PR should update documentation as needed:
-- AI will do most of this :) 
+For each PR, update docs as needed:
 - `docs/DEV_LOG.md`
 - `docs/TEAM_HANDOFF.md`
-- `docs/ARCHITECTURE_DECISIONS.md` (if a decision changes)
-- `README.md` (if setup/workflow changes)
-
-## What To Do Once Stack Is Chosen
-
-Backend team:
-- replace `backend/Dockerfile`
-- add backend runtime/dependency/source files
-- document decision and migration plan in `docs/ARCHITECTURE_DECISIONS.md`
-
-Frontend team:
-- replace `frontend/Dockerfile`
-- add frontend runtime/dependency/source files
-- document decision and migration plan in `docs/ARCHITECTURE_DECISIONS.md`
+- `docs/ARCHITECTURE_DECISIONS.md` (if decisions changed)
+- `README.md` (if setup/workflow changed)
